@@ -6,6 +6,8 @@ import type {
   Customer,
   Invoice,
   InvoiceStatus,
+  Quotation,
+  QuotationStatus,
   DashboardStats,
 } from '../types';
 
@@ -76,3 +78,17 @@ export const deleteInvoice = (id: number) =>
   request<{ message: string }>(`/invoices/${id}`, { method: 'DELETE' });
 export const updateInvoiceStatus = (id: number, status: InvoiceStatus) =>
   request<Invoice>(`/invoices/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+
+// Quotations
+export const getQuotations = () => request<Quotation[]>('/quotations');
+export const getQuotation = (id: number) => request<Quotation>(`/quotations/${id}`);
+export const createQuotation = (data: Partial<Quotation>) =>
+  request<Quotation>('/quotations', { method: 'POST', body: JSON.stringify(data) });
+export const updateQuotation = (id: number, data: Partial<Quotation>) =>
+  request<Quotation>(`/quotations/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+export const deleteQuotation = (id: number) =>
+  request<{ message: string }>(`/quotations/${id}`, { method: 'DELETE' });
+export const updateQuotationStatus = (id: number, status: QuotationStatus) =>
+  request<Quotation>(`/quotations/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+export const convertQuotationToInvoice = (id: number) =>
+  request<Invoice>(`/quotations/${id}/convert`, { method: 'POST' });

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, Package, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, Package, Search, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
+import * as XLSX from 'xlsx';
 import { getProducts, createProduct, updateProduct, deleteProduct, getCategories } from '../api/client';
 import type { Product, Category } from '../types';
 import Button from '../components/ui/Button';
@@ -12,12 +13,12 @@ import Badge from '../components/ui/Badge';
 const UNITS = ['pcs', 'kg', 'g', 'l', 'ml', 'm', 'cm', 'box', 'pack', 'ream', 'license', 'kit', 'set'];
 
 function formatCurrency(n: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
+  return new Intl.NumberFormat('en-MY', { style: 'currency', currency: 'MYR' }).format(n);
 }
 
 const emptyForm = {
   sku: '', name: '', description: '', category_id: '', cost_price: '0',
-  sale_price: '', unit: 'pcs', tax_rate: '0', min_stock: '0',
+  sale_price: '', unit: 'pcs', tax_rate: '6', min_stock: '0',
 };
 
 export default function Products() {
@@ -118,6 +119,21 @@ export default function Products() {
     }
   };
 
+  const exportExcel = () => {
+    const rows = products.map(p => ({
+      SKU: p.sku,
+      Name: p.name,
+      Category: p.category_name || '',
+      'Cost Price': p.cost_price,
+      'Sale Price': p.sale_price,
+      'Tax Rate (%)': p.tax_rate,
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Products');
+    XLSX.writeFile(wb, 'products.xlsx');
+  };
+
   const stockBadge = (qty: number, min: number) => {
     if (qty === 0) return <Badge variant="danger">Out of stock</Badge>;
     if (qty <= min) return <Badge variant="warning">Low stock</Badge>;
@@ -131,9 +147,14 @@ export default function Products() {
           <h1 className="text-2xl font-bold text-slate-900">Products</h1>
           <p className="text-slate-500 text-sm mt-1">{products.length} products</p>
         </div>
-        <Button onClick={openCreate}>
-          <Plus size={16} /> New Product
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={exportExcel}>
+            <Download size={16} /> Export Excel
+          </Button>
+          <Button onClick={openCreate}>
+            <Plus size={16} /> New Product
+          </Button>
+        </div>
       </div>
 
       <div className="relative max-w-sm">
@@ -246,7 +267,7 @@ export default function Products() {
             <Input label="Sale Price" required type="number" step="0.01" min="0" value={form.sale_price} onChange={e => setForm(f => ({ ...f, sale_price: e.target.value }))} />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Tax Rate (%)" type="number" step="0.1" min="0" max="100" value={form.tax_rate} onChange={e => setForm(f => ({ ...f, tax_rate: e.target.value }))} />
+            <Input label="SST (%)" type="number" step="0.1" min="0" max="100" value={form.tax_rate} onChange={e => setForm(f => ({ ...f, tax_rate: e.target.value }))} />
             <Input label="Min Stock" type="number" min="0" value={form.min_stock} onChange={e => setForm(f => ({ ...f, min_stock: e.target.value }))} />
           </div>
           <div className="flex gap-3 pt-2">

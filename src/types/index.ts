@@ -101,6 +101,45 @@ export interface Invoice {
   updated_at: string;
 }
 
+export type QuotationStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired';
+
+export interface QuotationItem {
+  id?: number;
+  quotation_id?: number;
+  product_id: number | null;
+  product_name?: string;
+  unit?: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  tax_rate: number;
+  amount: number;
+}
+
+export interface Quotation {
+  id: number;
+  quotation_number: string;
+  customer_id: number | null;
+  customer_name?: string;
+  customer_email?: string;
+  customer_phone?: string;
+  customer_address?: string;
+  customer_city?: string;
+  customer_country?: string;
+  customer_tax_number?: string;
+  issue_date: string;
+  validity_date: string;
+  status: QuotationStatus;
+  subtotal: number;
+  tax_amount: number;
+  discount: number;
+  total: number;
+  notes: string | null;
+  items?: QuotationItem[];
+  created_at: string;
+  updated_at: string;
+}
+
 export interface DashboardStats {
   totalProducts: number;
   lowStockAlerts: number;

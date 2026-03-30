@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
-import { Warehouse, ArrowDownCircle, ArrowUpCircle, RotateCcw, History, AlertTriangle } from 'lucide-react';
+import { useEffect, useState, useRef } from 'react';
+import { Warehouse, ArrowDownCircle, ArrowUpCircle, RotateCcw, History, AlertTriangle, Download, ScanLine } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
+import * as XLSX from 'xlsx';
 import { getStock, getStockMovements, recordStockMovement } from '../api/client';
 import type { StockLevel, StockMovement } from '../types';
 import Button from '../components/ui/Button';
@@ -23,6 +24,17 @@ export default function Stock() {
   const [movForm, setMovForm] = useState({ product_id: '', type: 'in', quantity: '', reference: '', notes: '' });
   const [saving, setSaving] = useState(false);
   const [movPage, setMovPage] = useState(0);
+
+  // Barcode scanner state
+  const [barcodeInput, setBarcodeInput] = useState('');
+  const barcodeRef = useRef<HTMLInputElement>(null);
+
+  // Quick stock modal (from barcode scan)
+  const [quickModalOpen, setQuickModalOpen] = useState(false);
+  const [quickProduct, setQuickProduct] = useState<StockLevel | null>(null);
+  const [quickForm, setQuickForm] = useState({ type: 'in', quantity: '' });
+  const [quickSaving, setQuickSaving] = useState(false);
+
   const PAGE_SIZE = 20;
 
   const loadStock = async () => {
@@ -48,6 +60,50 @@ export default function Stock() {
     setLoading(true);
     Promise.all([loadStock(), loadMovements(0)]).finally(() => setLoading(false));
   }, []);
+
+  // Auto-focus barcode input when on levels tab
+  useEffect(() => {
+    if (tab === 'levels' && barcodeRef.current) {
+      barcodeRef.current.focus();
+    }
+  }, [tab]);
+
+  const handleBarcodeScan = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter') return;
+    const sku = barcodeInput.trim();
+    if (!sku) return;
+    setBarcodeInput('');
+    const found = stock.find(s => s.sku.toLowerCase() === sku.toLowerCase());
+    if (!found) {
+      toast.error(`Product not found: ${sku}`);
+      return;
+    }
+    setQuickProduct(found);
+    setQuickForm({ type: 'in', quantity: '' });
+    setQuickModalOpen(true);
+  };
+
+  const handleQuickMovement = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickProduct || !quickForm.quantity) return;
+    setQuickSaving(true);
+    try {
+      await recordStockMovement({
+        product_id: quickProduct.product_id,
+        type: quickForm.type,
+        quantity: parseFloat(quickForm.quantity),
+      });
+      toast.success('Stock updated');
+      setQuickModalOpen(false);
+      await Promise.all([loadStock(), loadMovements(movPage)]);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update stock');
+    } finally {
+      setQuickSaving(false);
+      // Re-focus barcode input after modal closes
+      setTimeout(() => barcodeRef.current?.focus(), 100);
+    }
+  };
 
   const openMovement = (item?: StockLevel) => {
     setSelectedProduct(item || null);
@@ -83,6 +139,22 @@ export default function Stock() {
     }
   };
 
+  const exportExcel = () => {
+    const rows = stock.map(s => ({
+      SKU: s.sku,
+      'Product Name': s.product_name,
+      Category: s.category_name || '',
+      Quantity: s.quantity,
+      Unit: s.unit,
+      'Min Stock': s.min_stock,
+      Status: s.quantity === 0 ? 'Out of stock' : s.quantity <= s.min_stock ? 'Low' : 'OK',
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Stock');
+    XLSX.writeFile(wb, 'stock-levels.xlsx');
+  };
+
   const movTypeIcon = (type: string) => {
     if (type === 'in') return <ArrowDownCircle size={16} className="text-green-600" />;
     if (type === 'out') return <ArrowUpCircle size={16} className="text-red-600" />;
@@ -104,9 +176,31 @@ export default function Stock() {
           <h1 className="text-2xl font-bold text-slate-900">Stock Management</h1>
           <p className="text-slate-500 text-sm mt-1">{stock.length} products tracked</p>
         </div>
-        <Button onClick={() => openMovement()}>
-          <ArrowDownCircle size={16} /> Record Movement
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={exportExcel}>
+            <Download size={16} /> Export Excel
+          </Button>
+          <Button onClick={() => openMovement()}>
+            <ArrowDownCircle size={16} /> Record Movement
+          </Button>
+        </div>
+      </div>
+
+      {/* Barcode Scanner Input */}
+      <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center gap-3">
+        <ScanLine size={20} className="text-blue-500 flex-shrink-0" />
+        <div className="flex-1">
+          <label className="block text-xs font-medium text-slate-500 mb-1">Scan Barcode / SKU</label>
+          <input
+            ref={barcodeRef}
+            type="text"
+            value={barcodeInput}
+            onChange={e => setBarcodeInput(e.target.value)}
+            onKeyDown={handleBarcodeScan}
+            placeholder="Scan or type SKU and press Enter..."
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
       </div>
 
       {lowStockItems.length > 0 && (
@@ -241,6 +335,45 @@ export default function Stock() {
           )}
         </div>
       )}
+
+      {/* Quick Stock Modal (from barcode scan) */}
+      <Modal open={quickModalOpen} onClose={() => { setQuickModalOpen(false); setTimeout(() => barcodeRef.current?.focus(), 100); }} title="Quick Stock Adjustment">
+        {quickProduct && (
+          <form onSubmit={handleQuickMovement} className="space-y-4">
+            <div className="bg-slate-50 rounded-lg p-3">
+              <p className="font-semibold text-slate-900">{quickProduct.product_name}</p>
+              <p className="text-xs text-slate-500 font-mono mt-0.5">{quickProduct.sku}</p>
+              <p className="text-sm text-slate-600 mt-1">Current stock: <span className="font-semibold">{quickProduct.quantity} {quickProduct.unit}</span></p>
+            </div>
+            <Select
+              label="Movement Type"
+              required
+              value={quickForm.type}
+              onChange={e => setQuickForm(f => ({ ...f, type: e.target.value }))}
+              options={[
+                { value: 'in', label: 'Stock In (Add to stock)' },
+                { value: 'out', label: 'Stock Out (Remove from stock)' },
+                { value: 'adjustment', label: 'Adjustment (Set new quantity)' },
+              ]}
+            />
+            <Input
+              label={quickForm.type === 'adjustment' ? 'New Quantity' : 'Quantity'}
+              required
+              type="number"
+              step="0.01"
+              min="0"
+              autoFocus
+              value={quickForm.quantity}
+              onChange={e => setQuickForm(f => ({ ...f, quantity: e.target.value }))}
+              placeholder="Enter quantity"
+            />
+            <div className="flex gap-3 pt-2">
+              <Button type="button" variant="secondary" onClick={() => { setQuickModalOpen(false); setTimeout(() => barcodeRef.current?.focus(), 100); }} className="flex-1">Cancel</Button>
+              <Button type="submit" loading={quickSaving} className="flex-1">Save</Button>
+            </div>
+          </form>
+        )}
+      </Modal>
 
       {/* Movement Modal */}
       <Modal open={movModalOpen} onClose={() => setMovModalOpen(false)} title="Record Stock Movement">

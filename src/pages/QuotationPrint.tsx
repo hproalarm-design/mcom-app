@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { getInvoice } from '../api/client';
-import type { Invoice } from '../types';
+import { getQuotation } from '../api/client';
+import type { Quotation } from '../types';
 
 const COMPANY = {
   name: 'Mcom Company',
@@ -22,34 +22,34 @@ function formatDate(d: string) {
 const STATUS_COLORS: Record<string, string> = {
   draft: '#6b7280',
   sent: '#2563eb',
-  paid: '#16a34a',
-  overdue: '#dc2626',
-  cancelled: '#9ca3af',
+  accepted: '#16a34a',
+  rejected: '#dc2626',
+  expired: '#9ca3af',
 };
 
-export default function InvoicePrint() {
+export default function QuotationPrint() {
   const { id } = useParams<{ id: string }>();
-  const [invoice, setInvoice] = useState<Invoice | null>(null);
+  const [quotation, setQuotation] = useState<Quotation | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (!id) return;
-    getInvoice(parseInt(id))
-      .then(setInvoice)
-      .catch(() => setError('Failed to load invoice'));
+    getQuotation(parseInt(id))
+      .then(setQuotation)
+      .catch(() => setError('Failed to load quotation'));
   }, [id]);
 
   useEffect(() => {
-    if (invoice) {
+    if (quotation) {
       setTimeout(() => window.print(), 500);
     }
-  }, [invoice]);
+  }, [quotation]);
 
   if (error) {
     return <div style={{ padding: 40, color: 'red' }}>{error}</div>;
   }
 
-  if (!invoice) {
+  if (!quotation) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
         <div>Loading...</div>
@@ -57,7 +57,7 @@ export default function InvoicePrint() {
     );
   }
 
-  const statusColor = STATUS_COLORS[invoice.status] || '#6b7280';
+  const statusColor = STATUS_COLORS[quotation.status] || '#6b7280';
 
   return (
     <>
@@ -86,7 +86,7 @@ export default function InvoicePrint() {
         </button>
       </div>
 
-      {/* Invoice Document */}
+      {/* Quotation Document */}
       <div style={{ maxWidth: 800, margin: '40px auto', padding: '40px', background: '#fff', boxShadow: '0 1px 20px rgba(0,0,0,0.08)' }}>
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 40 }}>
@@ -101,8 +101,8 @@ export default function InvoicePrint() {
             </div>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 36, fontWeight: 800, color: '#0f172a', letterSpacing: '-1px' }}>INVOICE</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#2563eb', marginTop: 4 }}>{invoice.invoice_number}</div>
+            <div style={{ fontSize: 36, fontWeight: 800, color: '#0f172a', letterSpacing: '-1px' }}>QUOTATION</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: '#2563eb', marginTop: 4 }}>{quotation.quotation_number}</div>
             <div style={{
               display: 'inline-block',
               marginTop: 8,
@@ -115,7 +115,7 @@ export default function InvoicePrint() {
               textTransform: 'uppercase',
               letterSpacing: '0.5px',
             }}>
-              {invoice.status}
+              {quotation.status}
             </div>
           </div>
         </div>
@@ -127,16 +127,16 @@ export default function InvoicePrint() {
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 40 }}>
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 8 }}>
-              Bill To
+              Prepared For
             </div>
-            {invoice.customer_name ? (
+            {quotation.customer_name ? (
               <div style={{ fontSize: 14, lineHeight: 1.7 }}>
-                <div style={{ fontWeight: 700, fontSize: 15, color: '#0f172a' }}>{invoice.customer_name}</div>
-                {invoice.customer_address && <div style={{ color: '#475569' }}>{invoice.customer_address}</div>}
-                {invoice.customer_city && <div style={{ color: '#475569' }}>{invoice.customer_city}{invoice.customer_country ? `, ${invoice.customer_country}` : ''}</div>}
-                {invoice.customer_phone && <div style={{ color: '#475569' }}>Tel: {invoice.customer_phone}</div>}
-                {invoice.customer_email && <div style={{ color: '#475569' }}>{invoice.customer_email}</div>}
-                {invoice.customer_tax_number && <div style={{ color: '#475569' }}>Tax No: {invoice.customer_tax_number}</div>}
+                <div style={{ fontWeight: 700, fontSize: 15, color: '#0f172a' }}>{quotation.customer_name}</div>
+                {quotation.customer_address && <div style={{ color: '#475569' }}>{quotation.customer_address}</div>}
+                {quotation.customer_city && <div style={{ color: '#475569' }}>{quotation.customer_city}{quotation.customer_country ? `, ${quotation.customer_country}` : ''}</div>}
+                {quotation.customer_phone && <div style={{ color: '#475569' }}>Tel: {quotation.customer_phone}</div>}
+                {quotation.customer_email && <div style={{ color: '#475569' }}>{quotation.customer_email}</div>}
+                {quotation.customer_tax_number && <div style={{ color: '#475569' }}>Tax No: {quotation.customer_tax_number}</div>}
               </div>
             ) : (
               <div style={{ color: '#94a3b8', fontStyle: 'italic' }}>No customer assigned</div>
@@ -145,11 +145,11 @@ export default function InvoicePrint() {
           <div style={{ textAlign: 'right' }}>
             <div style={{ marginBottom: 8 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px' }}>Issue Date</div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#0f172a', marginTop: 2 }}>{formatDate(invoice.issue_date)}</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#0f172a', marginTop: 2 }}>{formatDate(quotation.issue_date)}</div>
             </div>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px' }}>Due Date</div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#0f172a', marginTop: 2 }}>{formatDate(invoice.due_date)}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px' }}>Valid Until</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#0f172a', marginTop: 2 }}>{formatDate(quotation.validity_date)}</div>
             </div>
           </div>
         </div>
@@ -168,7 +168,7 @@ export default function InvoicePrint() {
                 Unit Price
               </th>
               <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '2px solid #e2e8f0', width: 60 }}>
-                Tax%
+                SST%
               </th>
               <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '2px solid #e2e8f0', width: 110 }}>
                 Amount
@@ -176,7 +176,7 @@ export default function InvoicePrint() {
             </tr>
           </thead>
           <tbody>
-            {invoice.items?.map((item, i) => (
+            {quotation.items?.map((item, i) => (
               <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
                 <td style={{ padding: '12px 12px', fontSize: 13, color: '#1e293b' }}>
                   {item.description}
@@ -196,36 +196,36 @@ export default function InvoicePrint() {
           <div style={{ width: 280 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: 13, color: '#475569' }}>
               <span>Subtotal</span>
-              <span>{formatCurrency(invoice.subtotal)}</span>
+              <span>{formatCurrency(quotation.subtotal)}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: 13, color: '#475569' }}>
-              <span>Tax</span>
-              <span>{formatCurrency(invoice.tax_amount)}</span>
+              <span>SST</span>
+              <span>{formatCurrency(quotation.tax_amount)}</span>
             </div>
-            {invoice.discount > 0 && (
+            {quotation.discount > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: 13, color: '#dc2626' }}>
                 <span>Discount</span>
-                <span>-{formatCurrency(invoice.discount)}</span>
+                <span>-{formatCurrency(quotation.discount)}</span>
               </div>
             )}
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', fontSize: 16, fontWeight: 800, color: '#0f172a', borderTop: '2px solid #e2e8f0', marginTop: 4 }}>
               <span>Total</span>
-              <span>{formatCurrency(invoice.total)}</span>
+              <span>{formatCurrency(quotation.total)}</span>
             </div>
           </div>
         </div>
 
         {/* Notes */}
-        {invoice.notes && (
+        {quotation.notes && (
           <div style={{ background: '#f8fafc', borderRadius: 8, padding: 16, marginBottom: 32 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6 }}>Notes</div>
-            <div style={{ fontSize: 13, color: '#475569', lineHeight: 1.6 }}>{invoice.notes}</div>
+            <div style={{ fontSize: 13, color: '#475569', lineHeight: 1.6 }}>{quotation.notes}</div>
           </div>
         )}
 
         {/* Footer */}
         <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 20, textAlign: 'center', color: '#94a3b8', fontSize: 12 }}>
-          Thank you for your business! · {COMPANY.name} · {COMPANY.email}
+          This quotation is valid until {formatDate(quotation.validity_date)} · {COMPANY.name} · {COMPANY.email}
         </div>
       </div>
     </>

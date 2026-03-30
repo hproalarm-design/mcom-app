@@ -17,7 +17,7 @@ function statusVariant(status: string) {
 }
 
 function formatCurrency(n: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
+  return new Intl.NumberFormat('en-MY', { style: 'currency', currency: 'MYR' }).format(n);
 }
 
 export default function Dashboard() {

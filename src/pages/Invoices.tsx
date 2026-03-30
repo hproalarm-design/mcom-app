@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, FileText, Eye, Pencil, Trash2, Printer, ChevronDown } from 'lucide-react';
+import { Plus, FileText, Eye, Pencil, Trash2, Printer, ChevronDown, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { getInvoices, deleteInvoice, updateInvoiceStatus } from '../api/client';
 import type { Invoice, InvoiceStatus } from '../types';
 import Button from '../components/ui/Button';
@@ -11,7 +14,7 @@ import Badge from '../components/ui/Badge';
 import Select from '../components/ui/Select';
 
 function formatCurrency(n: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
+  return new Intl.NumberFormat('en-MY', { style: 'currency', currency: 'MYR' }).format(n);
 }
 
 function statusVariant(status: string): 'success' | 'info' | 'danger' | 'default' | 'warning' | 'purple' {
@@ -76,6 +79,44 @@ export default function Invoices() {
     }
   };
 
+  const exportExcel = () => {
+    const rows = invoices.map(inv => ({
+      'Invoice No': inv.invoice_number,
+      Customer: inv.customer_name || '',
+      Date: format(new Date(inv.issue_date), 'yyyy-MM-dd'),
+      'Due Date': format(new Date(inv.due_date), 'yyyy-MM-dd'),
+      Status: inv.status,
+      Total: inv.total,
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Invoices');
+    XLSX.writeFile(wb, 'invoices.xlsx');
+  };
+
+  const exportPDF = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.text('Invoice List', 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Generated: ${format(new Date(), 'yyyy-MM-dd HH:mm')}`, 14, 22);
+    autoTable(doc, {
+      startY: 28,
+      head: [['Invoice No', 'Customer', 'Date', 'Due Date', 'Status', 'Total (RM)']],
+      body: invoices.map(inv => [
+        inv.invoice_number,
+        inv.customer_name || '',
+        format(new Date(inv.issue_date), 'yyyy-MM-dd'),
+        format(new Date(inv.due_date), 'yyyy-MM-dd'),
+        inv.status,
+        inv.total.toFixed(2),
+      ]),
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [37, 99, 235] },
+    });
+    doc.save('invoices.pdf');
+  };
+
   const totals = {
     total: invoices.reduce((s, i) => s + i.total, 0),
     paid: invoices.filter(i => i.status === 'paid').reduce((s, i) => s + i.total, 0),
@@ -89,9 +130,17 @@ export default function Invoices() {
           <h1 className="text-2xl font-bold text-slate-900">Invoices</h1>
           <p className="text-slate-500 text-sm mt-1">{invoices.length} invoices</p>
         </div>
-        <Link to="/invoices/new">
-          <Button><Plus size={16} /> New Invoice</Button>
-        </Link>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={exportExcel}>
+            <Download size={16} /> Export Excel
+          </Button>
+          <Button variant="outline" onClick={exportPDF}>
+            <FileText size={16} /> Export PDF
+          </Button>
+          <Link to="/invoices/new">
+            <Button><Plus size={16} /> New Invoice</Button>
+          </Link>
+        </div>
       </div>
 
       {/* Summary Cards */}

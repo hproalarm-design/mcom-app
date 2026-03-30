@@ -10,6 +10,7 @@ import categoriesRouter from './routes/categories';
 import stockRouter from './routes/stock';
 import invoicesRouter from './routes/invoices';
 import customersRouter from './routes/customers';
+import quotationsRouter from './routes/quotations';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -28,6 +29,7 @@ app.use('/api/categories', categoriesRouter);
 app.use('/api/stock', stockRouter);
 app.use('/api/invoices', invoicesRouter);
 app.use('/api/customers', customersRouter);
+app.use('/api/quotations', quotationsRouter);
 
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {

@@ -88,6 +88,33 @@ export function initializeDatabase() {
       tax_rate REAL DEFAULT 0,
       amount REAL NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS quotations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      quotation_number TEXT UNIQUE NOT NULL,
+      customer_id INTEGER REFERENCES customers(id),
+      issue_date TEXT NOT NULL,
+      validity_date TEXT NOT NULL,
+      status TEXT DEFAULT 'draft',
+      subtotal REAL DEFAULT 0,
+      tax_amount REAL DEFAULT 0,
+      discount REAL DEFAULT 0,
+      total REAL DEFAULT 0,
+      notes TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS quotation_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      quotation_id INTEGER REFERENCES quotations(id) ON DELETE CASCADE,
+      product_id INTEGER REFERENCES products(id),
+      description TEXT NOT NULL,
+      quantity REAL NOT NULL,
+      unit_price REAL NOT NULL,
+      tax_rate REAL DEFAULT 0,
+      amount REAL NOT NULL
+    );
   `);
 
   seedDatabase();

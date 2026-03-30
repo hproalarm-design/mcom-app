@@ -6,6 +6,7 @@ import {
   Warehouse,
   FileText,
   Users,
+  ClipboardList,
 } from 'lucide-react';
 
 const navItems = [
@@ -13,6 +14,7 @@ const navItems = [
   { to: '/products', icon: Package, label: 'Products' },
   { to: '/categories', icon: Tag, label: 'Categories' },
   { to: '/stock', icon: Warehouse, label: 'Stock' },
+  { to: '/quotations', icon: ClipboardList, label: 'Quotations' },
   { to: '/invoices', icon: FileText, label: 'Invoices' },
   { to: '/customers', icon: Users, label: 'Customers' },
 ];

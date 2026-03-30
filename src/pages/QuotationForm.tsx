@@ -1,13 +1,22 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { Plus, Trash2, ArrowLeft, Save } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
-import { getInvoice, createInvoice, updateInvoice, getCustomers, getProducts } from '../api/client';
-import type { Customer, Product, InvoiceItem, InvoiceStatus } from '../types';
+import { getQuotation, createQuotation, updateQuotation, getCustomers, getProducts } from '../api/client';
+import type { Customer, Product, QuotationStatus } from '../types';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
+
+interface QuotationItemLocal {
+  product_id: number | null;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  tax_rate: number;
+  amount: number;
+}
 
 function formatCurrency(n: number) {
   return new Intl.NumberFormat('en-MY', { style: 'currency', currency: 'MYR' }).format(n);
@@ -19,12 +28,12 @@ const thirtyDaysLater = format(new Date(Date.now() + 30 * 86400000), 'yyyy-MM-dd
 const STATUS_OPTIONS = [
   { value: 'draft', label: 'Draft' },
   { value: 'sent', label: 'Sent' },
-  { value: 'paid', label: 'Paid' },
-  { value: 'overdue', label: 'Overdue' },
-  { value: 'cancelled', label: 'Cancelled' },
+  { value: 'accepted', label: 'Accepted' },
+  { value: 'rejected', label: 'Rejected' },
+  { value: 'expired', label: 'Expired' },
 ];
 
-const emptyItem = (): InvoiceItem => ({
+const emptyItem = (): QuotationItemLocal => ({
   product_id: null,
   description: '',
   quantity: 1,
@@ -33,7 +42,7 @@ const emptyItem = (): InvoiceItem => ({
   amount: 0,
 });
 
-export default function InvoiceForm() {
+export default function QuotationForm() {
   const { id } = useParams<{ id: string }>();
   const isEdit = Boolean(id);
   const navigate = useNavigate();
@@ -45,11 +54,11 @@ export default function InvoiceForm() {
 
   const [customerId, setCustomerId] = useState('');
   const [issueDate, setIssueDate] = useState(today);
-  const [dueDate, setDueDate] = useState(thirtyDaysLater);
-  const [status, setStatus] = useState<InvoiceStatus>('draft');
+  const [validityDate, setValidityDate] = useState(thirtyDaysLater);
+  const [status, setStatus] = useState<QuotationStatus>('draft');
   const [discount, setDiscount] = useState('0');
   const [notes, setNotes] = useState('');
-  const [items, setItems] = useState<InvoiceItem[]>([emptyItem()]);
+  const [items, setItems] = useState<QuotationItemLocal[]>([emptyItem()]);
 
   useEffect(() => {
     const init = async () => {
@@ -59,14 +68,21 @@ export default function InvoiceForm() {
         setProducts(prods);
 
         if (isEdit && id) {
-          const inv = await getInvoice(parseInt(id));
-          setCustomerId(inv.customer_id ? String(inv.customer_id) : '');
-          setIssueDate(inv.issue_date);
-          setDueDate(inv.due_date);
-          setStatus(inv.status);
-          setDiscount(String(inv.discount));
-          setNotes(inv.notes || '');
-          setItems(inv.items && inv.items.length > 0 ? inv.items : [emptyItem()]);
+          const quo = await getQuotation(parseInt(id));
+          setCustomerId(quo.customer_id ? String(quo.customer_id) : '');
+          setIssueDate(quo.issue_date);
+          setValidityDate(quo.validity_date);
+          setStatus(quo.status);
+          setDiscount(String(quo.discount));
+          setNotes(quo.notes || '');
+          setItems(quo.items && quo.items.length > 0 ? quo.items.map(i => ({
+            product_id: i.product_id,
+            description: i.description,
+            quantity: i.quantity,
+            unit_price: i.unit_price,
+            tax_rate: i.tax_rate,
+            amount: i.amount,
+          })) : [emptyItem()]);
         }
       } catch {
         toast.error('Failed to load form data');
@@ -77,12 +93,12 @@ export default function InvoiceForm() {
     init();
   }, [id, isEdit]);
 
-  const recalcItem = (item: InvoiceItem): InvoiceItem => ({
+  const recalcItem = (item: QuotationItemLocal): QuotationItemLocal => ({
     ...item,
     amount: item.quantity * item.unit_price,
   });
 
-  const updateItem = (index: number, changes: Partial<InvoiceItem>) => {
+  const updateItem = (index: number, changes: Partial<QuotationItemLocal>) => {
     setItems(prev => {
       const updated = [...prev];
       const merged = { ...updated[index], ...changes };
@@ -94,7 +110,7 @@ export default function InvoiceForm() {
   const selectProduct = (index: number, productId: string) => {
     const prod = products.find(p => p.id === parseInt(productId));
     if (!prod) {
-      updateItem(index, { product_id: null, description: '', unit_price: 0, tax_rate: 0 });
+      updateItem(index, { product_id: null, description: '', unit_price: 0, tax_rate: 6 });
       return;
     }
     updateItem(index, {
@@ -123,7 +139,7 @@ export default function InvoiceForm() {
     const data = {
       customer_id: customerId ? parseInt(customerId) : undefined,
       issue_date: issueDate,
-      due_date: dueDate,
+      validity_date: validityDate,
       status,
       discount: discountAmt,
       notes: notes || undefined,
@@ -139,15 +155,15 @@ export default function InvoiceForm() {
 
     try {
       if (isEdit && id) {
-        await updateInvoice(parseInt(id), data);
-        toast.success('Invoice updated');
+        await updateQuotation(parseInt(id), data);
+        toast.success('Quotation updated');
       } else {
-        await createInvoice(data);
-        toast.success('Invoice created');
+        await createQuotation(data);
+        toast.success('Quotation created');
       }
-      navigate('/invoices');
+      navigate('/quotations');
     } catch (err: any) {
-      toast.error(err.message || 'Failed to save invoice');
+      toast.error(err.message || 'Failed to save quotation');
     } finally {
       setSaving(false);
     }
@@ -164,21 +180,21 @@ export default function InvoiceForm() {
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
-        <Link to="/invoices">
+        <Link to="/quotations">
           <button className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors">
             <ArrowLeft size={20} />
           </button>
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">{isEdit ? 'Edit Invoice' : 'New Invoice'}</h1>
-          <p className="text-slate-500 text-sm mt-0.5">{isEdit ? 'Update invoice details' : 'Create a new invoice'}</p>
+          <h1 className="text-2xl font-bold text-slate-900">{isEdit ? 'Edit Quotation' : 'New Quotation'}</h1>
+          <p className="text-slate-500 text-sm mt-0.5">{isEdit ? 'Update quotation details' : 'Create a new quotation'}</p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Header info */}
         <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-          <h2 className="font-semibold text-slate-900 mb-4">Invoice Details</h2>
+          <h2 className="font-semibold text-slate-900 mb-4">Quotation Details</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <Select
               label="Customer"
@@ -190,12 +206,12 @@ export default function InvoiceForm() {
             <Select
               label="Status"
               value={status}
-              onChange={e => setStatus(e.target.value as InvoiceStatus)}
+              onChange={e => setStatus(e.target.value as QuotationStatus)}
               options={STATUS_OPTIONS}
             />
             <div />
             <Input label="Issue Date" type="date" required value={issueDate} onChange={e => setIssueDate(e.target.value)} />
-            <Input label="Due Date" type="date" required value={dueDate} onChange={e => setDueDate(e.target.value)} />
+            <Input label="Valid Until" type="date" required value={validityDate} onChange={e => setValidityDate(e.target.value)} />
           </div>
         </div>
 
@@ -209,7 +225,6 @@ export default function InvoiceForm() {
           </div>
 
           <div className="space-y-3">
-            {/* Header row */}
             <div className="hidden md:grid grid-cols-12 gap-2 text-xs font-semibold text-slate-500 uppercase px-1">
               <div className="col-span-3">Product</div>
               <div className="col-span-3">Description</div>
@@ -301,7 +316,7 @@ export default function InvoiceForm() {
                 <span>{formatCurrency(subtotal)}</span>
               </div>
               <div className="flex justify-between text-slate-600">
-                <span>Tax</span>
+                <span>Tax (SST)</span>
                 <span>{formatCurrency(taxAmount)}</span>
               </div>
               <div className="flex justify-between items-center text-slate-600">
@@ -331,16 +346,16 @@ export default function InvoiceForm() {
             onChange={e => setNotes(e.target.value)}
             rows={3}
             className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-            placeholder="Payment terms, additional information..."
+            placeholder="Terms, validity conditions, additional information..."
           />
         </div>
 
         <div className="flex gap-3 justify-end">
-          <Link to="/invoices">
+          <Link to="/quotations">
             <Button type="button" variant="secondary">Cancel</Button>
           </Link>
           <Button type="submit" loading={saving}>
-            <Save size={16} /> {isEdit ? 'Update Invoice' : 'Create Invoice'}
+            <Save size={16} /> {isEdit ? 'Update Quotation' : 'Create Quotation'}
           </Button>
         </div>
       </form>

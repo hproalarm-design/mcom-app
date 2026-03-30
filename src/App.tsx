@@ -9,6 +9,9 @@ import Invoices from './pages/Invoices';
 import InvoiceForm from './pages/InvoiceForm';
 import InvoicePrint from './pages/InvoicePrint';
 import Customers from './pages/Customers';
+import Quotations from './pages/Quotations';
+import QuotationForm from './pages/QuotationForm';
+import QuotationPrint from './pages/QuotationPrint';
 
 export default function App() {
   return (
@@ -22,6 +25,7 @@ export default function App() {
       />
       <Routes>
         <Route path="/invoices/:id/print" element={<InvoicePrint />} />
+        <Route path="/quotations/:id/print" element={<QuotationPrint />} />
         <Route element={<Layout />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
@@ -32,6 +36,9 @@ export default function App() {
           <Route path="/invoices/new" element={<InvoiceForm />} />
           <Route path="/invoices/:id/edit" element={<InvoiceForm />} />
           <Route path="/customers" element={<Customers />} />
+          <Route path="/quotations" element={<Quotations />} />
+          <Route path="/quotations/new" element={<QuotationForm />} />
+          <Route path="/quotations/:id/edit" element={<QuotationForm />} />
         </Route>
       </Routes>
     </BrowserRouter>

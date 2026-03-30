@@ -8,7 +8,7 @@ import Modal from '../components/ui/Modal';
 import Input from '../components/ui/Input';
 
 function formatCurrency(n: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
+  return new Intl.NumberFormat('en-MY', { style: 'currency', currency: 'MYR' }).format(n);
 }
 
 const emptyForm = { name: '', email: '', phone: '', address: '', city: '', country: '', tax_number: '' };
