@@ -92,3 +92,11 @@ export const updateQuotationStatus = (id: number, status: QuotationStatus) =>
   request<Quotation>(`/quotations/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
 export const convertQuotationToInvoice = (id: number) =>
   request<Invoice>(`/quotations/${id}/convert`, { method: 'POST' });
+
+// Backup
+export const exportBackup = () => request<Record<string, unknown>>('/backup/export');
+export const importBackup = (data: Record<string, unknown>) =>
+  request<{ message: string; counts: Record<string, number> }>('/backup/import', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });

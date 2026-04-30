@@ -12,6 +12,7 @@ import Customers from './pages/Customers';
 import Quotations from './pages/Quotations';
 import QuotationForm from './pages/QuotationForm';
 import QuotationPrint from './pages/QuotationPrint';
+import Backup from './pages/Backup';
 
 export default function App() {
   return (
@@ -39,6 +40,7 @@ export default function App() {
           <Route path="/quotations" element={<Quotations />} />
           <Route path="/quotations/new" element={<QuotationForm />} />
           <Route path="/quotations/:id/edit" element={<QuotationForm />} />
+          <Route path="/backup" element={<Backup />} />
         </Route>
       </Routes>
     </BrowserRouter>

@@ -250,9 +250,9 @@ export default function Quotations() {
                         <button
                           onClick={() => setConvertId(q.id)}
                           title="Convert to Invoice"
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-purple-600 hover:bg-purple-50 transition-colors"
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 transition-colors"
                         >
-                          <ArrowRight size={15} />
+                          <ArrowRight size={13} /> Convert
                         </button>
                         <Link to={`/quotations/${q.id}/print`} target="_blank">
                           <button className="p-1.5 rounded-lg text-slate-400 hover:text-green-600 hover:bg-green-50 transition-colors">
@@ -294,15 +294,23 @@ export default function Quotations() {
       </Modal>
 
       {/* Convert to Invoice Modal */}
-      <Modal open={convertId !== null} onClose={() => setConvertId(null)} title="Convert to Invoice" size="sm">
+      <Modal open={convertId !== null} onClose={() => setConvertId(null)} title="Convert Quotation to Invoice" size="sm">
         <div className="space-y-4">
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+            <p className="text-sm font-semibold text-purple-900">{convertQuote?.quotation_number}</p>
+            {convertQuote?.customer_name && <p className="text-xs text-purple-700 mt-0.5">{convertQuote.customer_name}</p>}
+            <p className="text-sm font-bold text-purple-900 mt-2">{formatCurrency(convertQuote?.total ?? 0)}</p>
+          </div>
           <p className="text-slate-600 text-sm">
-            Convert <span className="font-semibold">{convertQuote?.quotation_number}</span> to an invoice?
-            The quotation will be marked as <span className="font-semibold text-green-600">accepted</span> and a new draft invoice will be created.
+            This will create a new <span className="font-semibold">draft invoice</span> from this quotation.
+            The quotation status will be updated to <span className="font-semibold text-green-600">Accepted</span>.
           </p>
+          <p className="text-slate-500 text-xs">You will be redirected to the Invoices page after conversion.</p>
           <div className="flex gap-3">
             <Button variant="secondary" onClick={() => setConvertId(null)} className="flex-1">Cancel</Button>
-            <Button onClick={handleConvert} loading={converting} className="flex-1">Convert to Invoice</Button>
+            <Button onClick={handleConvert} loading={converting} className="flex-1 bg-purple-600 hover:bg-purple-700">
+              <ArrowRight size={15} /> Convert to Invoice
+            </Button>
           </div>
         </div>
       </Modal>

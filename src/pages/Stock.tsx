@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
-import { Warehouse, ArrowDownCircle, ArrowUpCircle, RotateCcw, History, AlertTriangle, Download, ScanLine } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Warehouse, ArrowDownCircle, ArrowUpCircle, RotateCcw, History, AlertTriangle, Download, ScanLine, PackagePlus, CheckCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
@@ -14,6 +15,7 @@ import Badge from '../components/ui/Badge';
 type Tab = 'levels' | 'movements';
 
 export default function Stock() {
+  const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('levels');
   const [stock, setStock] = useState<StockLevel[]>([]);
   const [movements, setMovements] = useState<StockMovement[]>([]);
@@ -32,8 +34,11 @@ export default function Stock() {
   // Quick stock modal (from barcode scan)
   const [quickModalOpen, setQuickModalOpen] = useState(false);
   const [quickProduct, setQuickProduct] = useState<StockLevel | null>(null);
-  const [quickForm, setQuickForm] = useState({ type: 'in', quantity: '' });
+  const [quickForm, setQuickForm] = useState({ type: 'in', quantity: '', notes: '' });
   const [quickSaving, setQuickSaving] = useState(false);
+
+  // Product not found modal
+  const [notFoundSku, setNotFoundSku] = useState<string | null>(null);
 
   const PAGE_SIZE = 20;
 
@@ -75,33 +80,43 @@ export default function Stock() {
     setBarcodeInput('');
     const found = stock.find(s => s.sku.toLowerCase() === sku.toLowerCase());
     if (!found) {
-      toast.error(`Product not found: ${sku}`);
+      setNotFoundSku(sku);
       return;
     }
     setQuickProduct(found);
-    setQuickForm({ type: 'in', quantity: '' });
+    setQuickForm({ type: 'in', quantity: '', notes: '' });
     setQuickModalOpen(true);
+  };
+
+  const closeQuickModal = () => {
+    setQuickModalOpen(false);
+    setTimeout(() => barcodeRef.current?.focus(), 150);
   };
 
   const handleQuickMovement = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!quickProduct || !quickForm.quantity) return;
+    const qty = parseFloat(quickForm.quantity);
     setQuickSaving(true);
     try {
-      await recordStockMovement({
+      const result = await recordStockMovement({
         product_id: quickProduct.product_id,
         type: quickForm.type,
-        quantity: parseFloat(quickForm.quantity),
+        quantity: qty,
+        notes: quickForm.notes || undefined,
       });
-      toast.success('Stock updated');
-      setQuickModalOpen(false);
+      const sign = quickForm.type === 'out' ? '-' : '+';
+      const typeLabel = quickForm.type === 'in' ? 'Stock In' : quickForm.type === 'out' ? 'Stock Out' : 'Adjusted';
+      toast.success(
+        `${typeLabel}: ${sign}${qty} ${quickProduct.unit} — ${quickProduct.product_name}\nNew stock: ${result.new_quantity} ${quickProduct.unit}`,
+        { duration: 4000, icon: <CheckCircle size={18} className="text-green-500" /> as any }
+      );
+      closeQuickModal();
       await Promise.all([loadStock(), loadMovements(movPage)]);
     } catch (err: any) {
       toast.error(err.message || 'Failed to update stock');
     } finally {
       setQuickSaving(false);
-      // Re-focus barcode input after modal closes
-      setTimeout(() => barcodeRef.current?.focus(), 100);
     }
   };
 
@@ -337,27 +352,39 @@ export default function Stock() {
       )}
 
       {/* Quick Stock Modal (from barcode scan) */}
-      <Modal open={quickModalOpen} onClose={() => { setQuickModalOpen(false); setTimeout(() => barcodeRef.current?.focus(), 100); }} title="Quick Stock Adjustment">
+      <Modal open={quickModalOpen} onClose={closeQuickModal} title="Quick Stock Update">
         {quickProduct && (
           <form onSubmit={handleQuickMovement} className="space-y-4">
-            <div className="bg-slate-50 rounded-lg p-3">
-              <p className="font-semibold text-slate-900">{quickProduct.product_name}</p>
-              <p className="text-xs text-slate-500 font-mono mt-0.5">{quickProduct.sku}</p>
-              <p className="text-sm text-slate-600 mt-1">Current stock: <span className="font-semibold">{quickProduct.quantity} {quickProduct.unit}</span></p>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="font-semibold text-blue-900">{quickProduct.product_name}</p>
+              <p className="text-xs text-blue-600 font-mono mt-0.5">SKU: {quickProduct.sku}</p>
+              <div className="flex items-center gap-3 mt-2">
+                <span className="text-xs text-blue-700">Current stock:</span>
+                <span className={`text-sm font-bold ${quickProduct.quantity === 0 ? 'text-red-600' : quickProduct.quantity <= quickProduct.min_stock ? 'text-amber-600' : 'text-green-700'}`}>
+                  {quickProduct.quantity} {quickProduct.unit}
+                </span>
+                {quickProduct.quantity === 0 && <Badge variant="danger">Out of stock</Badge>}
+                {quickProduct.quantity > 0 && quickProduct.quantity <= quickProduct.min_stock && <Badge variant="warning">Low stock</Badge>}
+              </div>
             </div>
-            <Select
-              label="Movement Type"
-              required
-              value={quickForm.type}
-              onChange={e => setQuickForm(f => ({ ...f, type: e.target.value }))}
-              options={[
-                { value: 'in', label: 'Stock In (Add to stock)' },
-                { value: 'out', label: 'Stock Out (Remove from stock)' },
-                { value: 'adjustment', label: 'Adjustment (Set new quantity)' },
-              ]}
-            />
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setQuickForm(f => ({ ...f, type: 'in' }))}
+                className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold border-2 transition-colors ${quickForm.type === 'in' ? 'bg-green-50 border-green-500 text-green-700' : 'border-slate-200 text-slate-500 hover:border-slate-300'}`}
+              >
+                <ArrowDownCircle size={16} /> Stock In
+              </button>
+              <button
+                type="button"
+                onClick={() => setQuickForm(f => ({ ...f, type: 'out' }))}
+                className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold border-2 transition-colors ${quickForm.type === 'out' ? 'bg-red-50 border-red-500 text-red-700' : 'border-slate-200 text-slate-500 hover:border-slate-300'}`}
+              >
+                <ArrowUpCircle size={16} /> Stock Out
+              </button>
+            </div>
             <Input
-              label={quickForm.type === 'adjustment' ? 'New Quantity' : 'Quantity'}
+              label={quickForm.type === 'adjustment' ? 'New Quantity' : `Quantity (${quickProduct.unit})`}
               required
               type="number"
               step="0.01"
@@ -367,12 +394,56 @@ export default function Stock() {
               onChange={e => setQuickForm(f => ({ ...f, quantity: e.target.value }))}
               placeholder="Enter quantity"
             />
-            <div className="flex gap-3 pt-2">
-              <Button type="button" variant="secondary" onClick={() => { setQuickModalOpen(false); setTimeout(() => barcodeRef.current?.focus(), 100); }} className="flex-1">Cancel</Button>
-              <Button type="submit" loading={quickSaving} className="flex-1">Save</Button>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-slate-700">Notes <span className="text-slate-400 font-normal">(optional)</span></label>
+              <input
+                type="text"
+                value={quickForm.notes}
+                onChange={e => setQuickForm(f => ({ ...f, notes: e.target.value }))}
+                placeholder="e.g. PO-001, received from supplier..."
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="flex gap-3 pt-1">
+              <Button type="button" variant="secondary" onClick={closeQuickModal} className="flex-1">Cancel</Button>
+              <Button
+                type="submit"
+                loading={quickSaving}
+                className={`flex-1 ${quickForm.type === 'out' ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}
+              >
+                Save
+              </Button>
             </div>
           </form>
         )}
+      </Modal>
+
+      {/* Product Not Found Modal */}
+      <Modal open={notFoundSku !== null} onClose={() => { setNotFoundSku(null); setTimeout(() => barcodeRef.current?.focus(), 150); }} title="Product Not Found" size="sm">
+        <div className="space-y-4">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <p className="text-sm font-medium text-amber-900">SKU not found in product list:</p>
+            <p className="font-mono font-bold text-amber-800 text-lg mt-1">{notFoundSku}</p>
+          </div>
+          <p className="text-slate-600 text-sm">
+            This SKU does not match any existing product. You can create a new product with this SKU, or check if the barcode was scanned correctly.
+          </p>
+          <div className="flex gap-3">
+            <Button
+              variant="secondary"
+              onClick={() => { setNotFoundSku(null); setTimeout(() => barcodeRef.current?.focus(), 150); }}
+              className="flex-1"
+            >
+              Try Again
+            </Button>
+            <Button
+              onClick={() => { setNotFoundSku(null); navigate('/products'); }}
+              className="flex-1"
+            >
+              <PackagePlus size={15} /> Create Product
+            </Button>
+          </div>
+        </div>
       </Modal>
 
       {/* Movement Modal */}

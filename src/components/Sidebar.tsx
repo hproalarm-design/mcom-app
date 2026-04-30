@@ -7,6 +7,7 @@ import {
   FileText,
   Users,
   ClipboardList,
+  HardDrive,
 } from 'lucide-react';
 
 const navItems = [
@@ -17,6 +18,7 @@ const navItems = [
   { to: '/quotations', icon: ClipboardList, label: 'Quotations' },
   { to: '/invoices', icon: FileText, label: 'Invoices' },
   { to: '/customers', icon: Users, label: 'Customers' },
+  { to: '/backup', icon: HardDrive, label: 'Backup' },
 ];
 
 export default function Sidebar() {
